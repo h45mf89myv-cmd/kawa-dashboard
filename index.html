@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budżet Plebania SKO</title>
+<style>
+  :root {
+    --bg: #f3f4f1; --surface: #ffffff; --text: #1d2420; --muted: #66706a; --line: #dde1dc;
+    --neg-bg: #fbe3e1; --neg: #a3201a; --pos-bg: #dcf1e2; --pos: #14702f; --zero-bg: #e8eae6; --zero: #3b443f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141816; --surface: #1d2320; --text: #eef1ee; --muted: #9aa49e; --line: #2c3430;
+      --neg-bg: #4a1c19; --neg: #ffb4ad; --pos-bg: #173b25; --pos: #8fe3a9; --zero-bg: #2a312d; --zero: #d5dbd7;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  main { width: 100%; max-width: 560px; }
+  h1 { font-size: 1.15rem; font-weight: 600; margin: 0 4px 14px; }
+  .saldo {
+    border-radius: 18px; padding: 32px 24px 28px; text-align: center;
+    background: var(--zero-bg); color: var(--zero); transition: background .3s, color .3s;
+  }
+  .saldo.neg { background: var(--neg-bg); color: var(--neg); }
+  .saldo.pos { background: var(--pos-bg); color: var(--pos); }
+  .saldo .value { font-size: clamp(2.6rem, 14vw, 4.4rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  .saldo .label { margin-top: 6px; font-size: 1rem; font-weight: 500; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; text-align: center; }
+  .card .value { font-size: 1.6rem; font-weight: 650; }
+  .card .label { margin-top: 4px; color: var(--muted); font-size: .95rem; }
+  footer { margin: 14px 4px 0; color: var(--muted); font-size: .85rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .err { color: var(--neg); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Budżet Plebania SKO</h1>
+  <section class="saldo" id="saldo" aria-live="polite">
+    <div class="value" id="a1">…</div>
+    <div class="label" id="a2">saldo</div>
+  </section>
+  <div class="row">
+    <div class="card"><div class="value" id="b1">…</div><div class="label" id="b2">zakupy</div></div>
+    <div class="card"><div class="value" id="c1">…</div><div class="label" id="c2">wpłaty</div></div>
+  </div>
+  <footer>
+    <span id="status">Ładowanie danych…</span>
+    <span>Odświeża się co minutę</span>
+  </footer>
+</main>
+
+<script>
+  var SHEET_ID = "11iadRShX6QyarnZ_0DyfoflscjTEvevMMMM6fnsEBJk";
+  var RANGE = "A1:C2";
+  var REFRESH_MS = 60000;
+
+  function $(id) { return document.getElementById(id); }
+
+  // Wczytanie danych przez JSONP (działa bez ustawień CORS, arkusz musi być udostępniony „każdemu, kto ma link”)
+  function load() {
+    var old = document.getElementById("gviz");
+    if (old) old.remove();
+    var s = document.createElement("script");
+    s.id = "gviz";
+    s.src = "https://docs.google.com/spreadsheets/d/" + SHEET_ID +
+            "/gviz/tq?tqx=out:json;responseHandler:onSheet&headers=0&range=" + RANGE +
+            "&_=" + Date.now();
+    s.onerror = function () { fail("Nie udało się pobrać danych. Sprawdź połączenie."); };
+    document.head.appendChild(s);
+  }
+
+  function cell(rows, r, c) {
+    var x = rows[r] && rows[r].c && rows[r].c[c];
+    return x || { v: null, f: "" };
+  }
+
+  window.onSheet = function (resp) {
+    if (!resp || resp.status !== "ok" || !resp.table) {
+      return fail("Arkusz nie jest dostępny. Sprawdź, czy jest udostępniony każdemu, kto ma link.");
+    }
+    var rows = resp.table.rows;
+    var a1 = cell(rows, 0, 0), b1 = cell(rows, 0, 1), c1 = cell(rows, 0, 2);
+    var a2 = cell(rows, 1, 0), b2 = cell(rows, 1, 1), c2 = cell(rows, 1, 2);
+
+    $("a1").textContent = a1.f || a1.v;
+    $("b1").textContent = b1.f || b1.v;
+    $("c1").textContent = c1.f || c1.v;
+    $("a2").textContent = a2.v || "saldo";
+    $("b2").textContent = b2.v || "zakupy";
+    $("c2").textContent = c2.v || "wpłaty";
+
+    var n = typeof a1.v === "number" ? a1.v : parseFloat(String(a1.v).replace(/[^\d,.\-]/g, "").replace(",", "."));
+    var el = $("saldo");
+    el.classList.remove("neg", "pos");
+    if (n < 0) el.classList.add("neg");
+    else if (n > 0) el.classList.add("pos");
+
+    var st = $("status");
+    st.classList.remove("err");
+    st.textContent = "Zaktualizowano " + new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  function fail(msg) {
+    var st = $("status");
+    st.classList.add("err");
+    st.textContent = msg;
+  }
+
+  load();
+  setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>

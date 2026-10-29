@@ -49,7 +49,7 @@
   </section>
   <div class="row">
     <div class="card"><div class="value" id="b1">…</div><div class="label" id="b2">zakupy</div></div>
-    <div class="card"><div class="value" id="c1">…</div><div class="label" id="c2">wpłaty</div></div>
+    <div class="card"><div class="value" id="c1">…</div><div class="label" id="c2">wpłaty SKO</div></div>
   </div>
   <footer>
     <span id="status">Ładowanie danych…</span>
@@ -95,7 +95,7 @@
     $("c1").textContent = c1.f || c1.v;
     $("a2").textContent = a2.v || "saldo";
     $("b2").textContent = b2.v || "zakupy";
-    $("c2").textContent = c2.v || "wpłaty";
+    $("c2").textContent = c2.v || "wpłaty SKO";
 
     var n = typeof a1.v === "number" ? a1.v : parseFloat(String(a1.v).replace(/[^\d,.\-]/g, "").replace(",", "."));
     var el = $("saldo");
